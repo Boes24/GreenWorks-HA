@@ -1,1 +1,22 @@
 /custom_components/greenworks/__pycache__
+.vscode
+.vscode-test
+.vscode-test-*
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg
+*.egg-info
+*.dist-info
+
+
+# Ignore Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+ENV.bak/

@@ -1,0 +1,12 @@
+{
+  "domain": "greenworks",
+  "name": "Green Works",
+  "codeowners": ["@boes24"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/Boes24/GreenWorks-HA",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/Boes24/GreenWorks-HA/issues",
+  "requirements": ["GreenWorks==0.1.0"],
+  "version": "0.1.0"
+}

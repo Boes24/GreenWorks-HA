@@ -1,6 +1,8 @@
 {
   "domain": "greenworks",
   "name": "GreenWorks",
+  "description": "Integration for GreenWorks",
+  "topics": ["greenworks", "mower", "lawn care"],
   "codeowners": ["@boes24"],
   "config_flow": true,
   "dependencies": [],

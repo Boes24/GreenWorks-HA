@@ -1,6 +1,10 @@
 from datetime import timedelta
 import logging
 
+from .__init__ import GreenWorksDataCoordinator
+
+from homeassistant import core
+
 from homeassistant.components.sensor import SensorEntity
 
 from homeassistant.const import UnitOfTemperature
@@ -14,21 +18,28 @@ _LOGGER = logging.getLogger(__name__)
 UPDATE_DELAY = timedelta(seconds=120)
 
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(hass: core.HomeAssistant, entry, async_add_entities):
     dataservice = hass.data[DOMAIN].get("coordinator"+entry.data[CONF_MOWER_NAME])
-
-    outdoor_temperature_sensor = WavinSentioOutdoorTemperatureSensor(dataservice)
-
+    if not dataservice:
+        _LOGGER.error("No data service found for the specified mower")
+        return
+    
     entities = []
-    entities.append(outdoor_temperature_sensor)
+    entities.append(MowerBatterySensor(dataservice))
+    entities.append(MowerMainStateSensor(dataservice))
+    entities.append(MowerNextStartSensor(dataservice))
+    entities.append(MowerFrostSensor(dataservice))
+    entities.append(MowerRainSensor(dataservice))
+    entities.append(MowerBladeUsageSensor(dataservice))
 
+    _LOGGER.debug("Adding entities for mower: %s", entry.data[CONF_MOWER_NAME])
     async_add_entities(entities)
 
 
-class WavinSentioOutdoorTemperatureSensor(CoordinatorEntity, SensorEntity):
-    """Representation of an Outdoor Temperature Sensor."""
+class MowerBatterySensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Battery Sensor."""
 
-    def __init__(self, dataservice):
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
         """Initialize the sensor."""
         super().__init__(dataservice)
         self._state = None
@@ -37,39 +48,108 @@ class WavinSentioOutdoorTemperatureSensor(CoordinatorEntity, SensorEntity):
     @property
     def name(self) -> str:
         """Return the name of the sensor."""
-        return "Outdoor Temperature"
+        return "Battery Level"
 
     @property
-    def state(self):
+    def native_value(self):
         """Return the state of the sensor."""
-        self._state = self._dataservice.get_device().outdoorTemperature
-        return self._state
+        return self._dataservice.get_first_mower().operating_status.battery_status
+    
+
+class MowerMainStateSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Main State Sensor."""
+
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
+        """Initialize the sensor."""
+        super().__init__(dataservice)
+        self._state = None
+        self._dataservice = dataservice
 
     @property
-    def unit_of_measurement(self) -> str:
-        """Return the unit of measurement."""
-        return UnitOfTemperature.CELSIUS
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return "Current State"
 
     @property
-    def device_class(self):
-        return "temperature"
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._dataservice.get_first_mower().operating_status.mower_main_state
+    
+class MowerNextStartSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Next Start Sensor."""
+
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
+        """Initialize the sensor."""
+        super().__init__(dataservice)
+        self._state = None
+        self._dataservice = dataservice
 
     @property
-    def unique_id(self):
-        """Return the ID of this device."""
-        return self._dataservice.get_device().serialNumber + "-OutdoorTemperature"
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return "Next Start"
 
     @property
-    def device_info(self):
-        temp_device = self._dataservice.get_device()
-        if temp_device is not None:
-            return {
-                "identifiers": {
-                    # Serial numbers are unique identifiers within a specific domain
-                    (DOMAIN, self.unique_id)
-                },
-                "name": self.name,
-                "manufacturer": "Wavin",
-                "model": "Sentio",
-            }
-        return
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._dataservice.get_first_mower().operating_status.next_start
+    
+class MowerFrostSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Frost Sensor."""
+
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
+        """Initialize the sensor."""
+        super().__init__(dataservice)
+        self._state = None
+        self._dataservice = dataservice
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return "Frost Sensor"
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._dataservice.get_first_mower().properties.is_frost_sensor_on
+    
+class MowerRainSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Rain Sensor."""
+
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
+        """Initialize the sensor."""
+        super().__init__(dataservice)
+        self._state = None
+        self._dataservice = dataservice
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return "Rain Sensor"
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._dataservice.get_first_mower().properties.is_rain_sensor_on
+    
+
+class MowerBladeUsageSensor(CoordinatorEntity, SensorEntity):
+    """Representation of a Mower Blade Usage Sensor."""
+
+    def __init__(self, dataservice: GreenWorksDataCoordinator):
+        """Initialize the sensor."""
+        super().__init__(dataservice)
+        self._state = None
+        self._dataservice = dataservice
+
+    @property
+    def name(self) -> str:
+        """Return the name of the sensor."""
+        return "Blade Usage Time"
+
+    @property
+    def native_value(self):
+        """Return the state of the sensor."""
+        return self._dataservice.get_first_mower().operating_status.blade_usage
+
+    

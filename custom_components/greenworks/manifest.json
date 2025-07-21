@@ -1,7 +1,6 @@
 {
   "domain": "greenworks",
   "name": "GreenWorks",
-  "topics": ["greenworks", "mower", "lawn care"],
   "codeowners": ["@boes24"],
   "config_flow": true,
   "dependencies": [],

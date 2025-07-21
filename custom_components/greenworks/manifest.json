@@ -1,6 +1,6 @@
 {
   "domain": "greenworks",
-  "name": "GreenWorks-HA",
+  "name": "GreenWorks",
   "codeowners": ["@boes24"],
   "config_flow": true,
   "dependencies": [],

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "data": {
-          "username": "Greenworks Username",
+          "username": "Email",
           "password": "Password"
         },
         "description": "Enter your Greenworks credentials.",

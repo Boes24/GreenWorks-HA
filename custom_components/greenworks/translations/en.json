@@ -1,0 +1,24 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        },
+        "description": "Enter your GreenWorks credentials.",
+        "title": "Authentication"
+      },
+      "reauth_confirm": {
+        "title": "[%key:common::config_flow::title::reauth%]",
+        "description": "The GreenWorks integration needs to re-authenticate your account"
+      }
+    },
+    "error": {
+      "auth_error": "Authorization failed, check email and password."
+    },
+    "abort": {
+      "reauth_successful": "New login info has been saved"
+    }
+  }
+}

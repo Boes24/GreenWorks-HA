@@ -61,7 +61,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "auth_error"
             return self.async_show_form(step_id="user", data_schema=AUTH_SCHEMA, errors=errors)
 
-        login_info = await self.hass.async_add_executor_job(api.__login_user, self._email, self._password)
+        login_info = await self.hass.async_add_executor_job(api._login_user, self._email, self._password)
 
         if not login_info:
             errors["base"] = "auth_error"

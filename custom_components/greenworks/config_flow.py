@@ -8,7 +8,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
-from greenworks import UnauthorizedException, GreenWorks
+from GreenWorksAPI.GreenWorksAPI import UnauthorizedException, GreenWorksAPI
 
 from .const import CONF_MOWER_NAME, DOMAIN
 
@@ -49,7 +49,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         try:
             api = await self.hass.async_add_executor_job(
-                GreenWorks, self._email, self._password
+                GreenWorksAPI, self._email, self._password
             )
         except UnauthorizedException:
             errors["base"] = "auth_error"

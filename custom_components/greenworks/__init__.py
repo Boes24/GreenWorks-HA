@@ -7,7 +7,7 @@ from homeassistant import config_entries, core
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_TIME_ZONE
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from GreenWorks.GreenWorks import GreenWorks, Mower, UnauthorizedException
+from GreenWorksAPI.GreenWorksAPI import GreenWorksAPI, Mower, UnauthorizedException
 
 
 from .const import CONF_MOWER_NAME, DOMAIN
@@ -22,7 +22,7 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
 
     try:
         api = await hass.async_add_executor_job(
-            GreenWorks, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], entry.data[CONF_TIME_ZONE]
+            GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], entry.data[CONF_TIME_ZONE]
         )
     except UnauthorizedException as err:
         raise ConfigEntryAuthFailed(err) from err
@@ -39,7 +39,7 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
 class GreenWorksDataCoordinator(DataUpdateCoordinator):
     """Get and update the latest data."""
 
-    def __init__(self, hass: core.HomeAssistant, api: GreenWorks, mower_name) -> None:
+    def __init__(self, hass: core.HomeAssistant, api: GreenWorksAPI, mower_name) -> None:
         """Initialize the GreenWorksDataCoordinator."""
         super().__init__(
             hass,

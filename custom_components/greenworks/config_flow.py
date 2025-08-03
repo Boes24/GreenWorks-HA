@@ -28,6 +28,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Invoke when a user initiates a flow via the user interface."""
+        self._timezone = self.hass.config.time_zone
         errors: dict[str, str] = {}
         if user_input is not None:
             self._email = user_input[CONF_EMAIL]
@@ -49,7 +50,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
         try:
             api = await self.hass.async_add_executor_job(
-                GreenWorksAPI, self._email, self._password
+                GreenWorksAPI, self._email, self._password, self._timezone
             )
         except UnauthorizedException:
             errors["base"] = "auth_error"

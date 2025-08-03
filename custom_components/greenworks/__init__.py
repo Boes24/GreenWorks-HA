@@ -19,6 +19,7 @@ PLATFORMS: list[str] = ["sensor"]
 async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
     """Set up Green Works from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    
 
     try:
         api = await hass.async_add_executor_job(

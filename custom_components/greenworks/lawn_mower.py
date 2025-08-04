@@ -36,6 +36,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     entities = []
     for mower in coordinator.mower:
         _LOGGER.debug("Checking mower: %s against config: %s", mower.name, entry.data[CONF_MOWER_NAME])
+        _LOGGER.debug("Mower object attributes: %s", dir(mower))
+        _LOGGER.debug("Mower object vars: %s", vars(mower) if hasattr(mower, '__dict__') else 'No __dict__')
         if mower.name == entry.data[CONF_MOWER_NAME]:
             _LOGGER.debug("Adding mower entity for: %s", mower.name)
             entities.append(GreenWorksLawnMower(coordinator, mower))
@@ -117,14 +119,21 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
         """Initialize the lawn mower."""
         super().__init__(coordinator)
         self.mower = mower
-        self._attr_unique_id = f"greenworks_{mower.serial_number}"
+        
+        # Based on GreenWorks Core API, use 'sn' for serial number
+        serial_num = getattr(mower, 'sn', None) or \
+                    getattr(mower, 'id', None) or \
+                    mower.name  # fallback to name
+        
+        self._attr_unique_id = f"greenworks_{serial_num}"
         self._attr_name = mower.name
         self._attr_supported_features = (
             LawnMowerEntityFeature.START_MOWING
             | LawnMowerEntityFeature.PAUSE
             | LawnMowerEntityFeature.DOCK
         )
-        _LOGGER.debug("Initialized GreenWorks mower: %s with serial: %s", mower.name, mower.serial_number)
+        _LOGGER.debug("Initialized GreenWorks mower: %s with sn: %s, id: %s", 
+                     mower.name, getattr(mower, 'sn', 'N/A'), getattr(mower, 'id', 'N/A'))
 
     @property
     def activity(self) -> LawnMowerActivity | None:
@@ -136,41 +145,96 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
             _LOGGER.debug("No coordinator data available")
             return None
         
-        # Find the current mower data
+        # Find the current mower data - match by sn (serial number) or id or name
         current_mower = None
         for mower in self.coordinator.data:
-            _LOGGER.debug("Checking mower: %s (serial: %s) against %s", 
-                         mower.name, mower.serial_number, self.mower.serial_number)
-            if mower.serial_number == self.mower.serial_number:
+            _LOGGER.debug("Checking mower: %s (sn: %s, id: %s) against %s", 
+                         mower.name, getattr(mower, 'sn', 'N/A'), 
+                         getattr(mower, 'id', 'N/A'), self.mower.name)
+            # Try to match by sn first, then id, then name
+            if (getattr(mower, 'sn', None) == getattr(self.mower, 'sn', None) and getattr(mower, 'sn', None)) or \
+               (getattr(mower, 'id', None) == getattr(self.mower, 'id', None) and getattr(mower, 'id', None)) or \
+               mower.name == self.mower.name:
                 current_mower = mower
                 break
                 
         if not current_mower:
             _LOGGER.debug("Current mower not found in coordinator data")
             return None
-            
-        # Map GreenWorks status to Home Assistant activity
-        status = current_mower.status.lower() if current_mower.status else ""
-        _LOGGER.debug("Mower %s status: %s", current_mower.name, status)
         
-        if "mowing" in status or "cutting" in status:
-            return LawnMowerActivity.MOWING
-        elif "charging" in status or "docked" in status:
-            return LawnMowerActivity.DOCKED
-        elif "paused" in status or "stopped" in status:
-            return LawnMowerActivity.PAUSED
-        elif "returning" in status:
-            return LawnMowerActivity.DOCKED  # Treating returning as docked
-        elif "error" in status:
-            return LawnMowerActivity.ERROR
+        # Check if mower has operating_status with mower_main_state
+        operating_status = getattr(current_mower, 'operating_status', None)
+        if operating_status and hasattr(operating_status, 'mower_main_state'):
+            state = operating_status.mower_main_state
+            _LOGGER.debug("Mower %s main state: %s", current_mower.name, state)
+            
+            # Map GreenWorks MowerState enum to Home Assistant activity
+            # Based on MowerState enum: STOP_BUTTON_PRESSED=1, PARKED_BY_USER=2, PAUSED=3, 
+            # MOWING=4, LEAVING_CHARGING_STATION=5, SEARCHING_FOR_CHARGING_STATION=6, CHARGING=7
+            if hasattr(state, 'value'):
+                state_value = state.value
+            else:
+                state_value = state
+                
+            if state_value == 4:  # MOWING
+                return LawnMowerActivity.MOWING
+            elif state_value == 7:  # CHARGING
+                return LawnMowerActivity.DOCKED
+            elif state_value in [1, 2, 3]:  # STOP_BUTTON_PRESSED, PARKED_BY_USER, PAUSED
+                return LawnMowerActivity.PAUSED
+            elif state_value in [5, 6]:  # LEAVING_CHARGING_STATION, SEARCHING_FOR_CHARGING_STATION
+                return LawnMowerActivity.DOCKED  # Treating as docked/returning
+            else:
+                return LawnMowerActivity.IDLE
         else:
-            return LawnMowerActivity.IDLE
+            # Fallback to checking status string if available
+            status = getattr(current_mower, 'status', '') or ''
+            if isinstance(status, str):
+                status = status.lower()
+            else:
+                status = str(status).lower()
+                
+            _LOGGER.debug("Mower %s fallback status: %s", current_mower.name, status)
+            
+            if "mowing" in status or "cutting" in status:
+                return LawnMowerActivity.MOWING
+            elif "charging" in status or "docked" in status:
+                return LawnMowerActivity.DOCKED
+            elif "paused" in status or "stopped" in status:
+                return LawnMowerActivity.PAUSED
+            else:
+                return LawnMowerActivity.IDLE
 
     @property
     def state(self) -> str | None:
         """Return the current state."""
         activity = self.activity
         return activity.value if activity else None
+
+    @property
+    def battery_level(self) -> int | None:
+        """Return the battery level."""
+        if not self.coordinator.data:
+            return None
+        
+        # Find the current mower data
+        current_mower = None
+        for mower in self.coordinator.data:
+            if (getattr(mower, 'sn', None) == getattr(self.mower, 'sn', None) and getattr(mower, 'sn', None)) or \
+               (getattr(mower, 'id', None) == getattr(self.mower, 'id', None) and getattr(mower, 'id', None)) or \
+               mower.name == self.mower.name:
+                current_mower = mower
+                break
+                
+        if not current_mower:
+            return None
+        
+        # Get battery level from operating_status
+        operating_status = getattr(current_mower, 'operating_status', None)
+        if operating_status and hasattr(operating_status, 'battery_status'):
+            return operating_status.battery_status
+        
+        return None
 
     @property
     def available(self) -> bool:
@@ -186,53 +250,129 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
         # Find the current mower data
         current_mower = None
         for mower in self.coordinator.data:
-            if mower.serial_number == self.mower.serial_number:
+            if (getattr(mower, 'sn', None) == getattr(self.mower, 'sn', None) and getattr(mower, 'sn', None)) or \
+               (getattr(mower, 'id', None) == getattr(self.mower, 'id', None) and getattr(mower, 'id', None)) or \
+               mower.name == self.mower.name:
                 current_mower = mower
                 break
                 
         if not current_mower:
             return {}
-            
-        attributes = {
-            "serial_number": current_mower.serial_number,
-            "model": getattr(current_mower, 'model', 'Unknown'),
-            "battery_level": getattr(current_mower, 'battery_level', None),
-            "cutting_height": getattr(current_mower, 'cutting_height', None),
-            "status": getattr(current_mower, 'status', 'Unknown'),
-        }
         
-        # Only include non-None values
-        return {k: v for k, v in attributes.items() if v is not None}
+        attributes = {}
+        
+        # From Mower_info class
+        if hasattr(current_mower, 'sn'):
+            attributes['serial_number'] = current_mower.sn
+        if hasattr(current_mower, 'id'):
+            attributes['device_id'] = current_mower.id
+        if hasattr(current_mower, 'is_online'):
+            attributes['is_online'] = current_mower.is_online
+        if hasattr(current_mower, 'mac'):
+            attributes['mac_address'] = current_mower.mac
+        if hasattr(current_mower, 'product_id'):
+            attributes['product_id'] = current_mower.product_id
+        if hasattr(current_mower, 'firmware_version'):
+            attributes['firmware_version'] = current_mower.firmware_version
+        if hasattr(current_mower, 'mcu_version'):
+            attributes['mcu_version'] = current_mower.mcu_version
+        
+        # From Mower_operating_status class
+        operating_status = getattr(current_mower, 'operating_status', None)
+        if operating_status:
+            if hasattr(operating_status, 'battery_status'):
+                attributes['battery_level'] = operating_status.battery_status
+            if hasattr(operating_status, 'mower_main_state'):
+                state = operating_status.mower_main_state
+                if hasattr(state, 'value'):
+                    attributes['mower_state'] = state.value
+                    attributes['mower_state_name'] = state.name if hasattr(state, 'name') else str(state)
+                else:
+                    attributes['mower_state'] = state
+            if hasattr(operating_status, 'next_start'):
+                attributes['next_start'] = str(operating_status.next_start)
+            if hasattr(operating_status, 'request_time'):
+                attributes['last_update'] = str(operating_status.request_time)
+        
+        # From Mower_properties class
+        properties = getattr(current_mower, 'properties', None)
+        if properties:
+            if hasattr(properties, 'is_frost_sensor_on'):
+                attributes['frost_sensor'] = properties.is_frost_sensor_on
+            if hasattr(properties, 'is_rain_sensor_on'):
+                attributes['rain_sensor'] = properties.is_rain_sensor_on
+            if hasattr(properties, 'device_blade_usage_time'):
+                attributes['blade_usage_time'] = properties.device_blade_usage_time
+            if hasattr(properties, 'geofence_latitude'):
+                attributes['geofence_latitude'] = properties.geofence_latitude
+            if hasattr(properties, 'geofence_longitude'):
+                attributes['geofence_longitude'] = properties.geofence_longitude
+        
+        return attributes
 
     @property
     def device_info(self):
         """Return device information."""
-        return {
-            "identifiers": {(DOMAIN, self.mower.serial_number)},
+        # Based on GreenWorks Core API, use 'sn' for serial number
+        serial_num = getattr(self.mower, 'sn', None) or \
+                    getattr(self.mower, 'id', None) or \
+                    self.mower.name  # fallback to name
+        
+        device_info = {
+            "identifiers": {(DOMAIN, str(serial_num))},
             "name": self.mower.name,
             "manufacturer": "GreenWorks",
-            "model": getattr(self.mower, 'model', 'Lawn Mower'),
-            "serial_number": self.mower.serial_number,
         }
+        
+        # Add model info if available
+        if hasattr(self.mower, 'product_id'):
+            device_info["model"] = f"Product ID: {self.mower.product_id}"
+        else:
+            device_info["model"] = "Lawn Mower"
+            
+        # Add serial number
+        if hasattr(self.mower, 'sn'):
+            device_info["serial_number"] = str(self.mower.sn)
+        
+        # Add firmware version if available
+        if hasattr(self.mower, 'firmware_version'):
+            device_info["sw_version"] = str(self.mower.firmware_version)
+            
+        return device_info
 
     def start_mowing(self) -> None:
         """Start or resume mowing."""
         try:
-            self.coordinator.api.start_mowing(self.mower.serial_number)
+            # Based on GreenWorks Core API, use 'sn' or 'id' for API calls
+            identifier = getattr(self.mower, 'sn', None) or \
+                        getattr(self.mower, 'id', None) or \
+                        self.mower.name
+            
+            self.coordinator.api.start_mowing(identifier)
         except Exception as ex:
             _LOGGER.error("Error starting mowing: %s", ex)
 
     def pause(self) -> None:
         """Pause the lawn mower."""
         try:
-            self.coordinator.api.pause_mowing(self.mower.serial_number)
+            # Based on GreenWorks Core API, use 'sn' or 'id' for API calls
+            identifier = getattr(self.mower, 'sn', None) or \
+                        getattr(self.mower, 'id', None) or \
+                        self.mower.name
+            
+            self.coordinator.api.pause_mowing(identifier)
         except Exception as ex:
             _LOGGER.error("Error pausing mowing: %s", ex)
 
     def dock(self) -> None:
         """Dock the mower."""
         try:
-            self.coordinator.api.return_to_dock(self.mower.serial_number)
+            # Based on GreenWorks Core API, use 'sn' or 'id' for API calls
+            identifier = getattr(self.mower, 'sn', None) or \
+                        getattr(self.mower, 'id', None) or \
+                        self.mower.name
+            
+            self.coordinator.api.return_to_dock(identifier)
         except Exception as ex:
             _LOGGER.error("Error returning to dock: %s", ex)
 

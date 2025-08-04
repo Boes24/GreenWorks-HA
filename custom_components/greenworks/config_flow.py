@@ -42,7 +42,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if data is not None:
             data[CONF_EMAIL] = self._email
             data[CONF_PASSWORD] = self._password
-            return await self.async_create_entry(title="GreenWorks", data=data)
+            return await self.async_create_entry(title="mower_name", data=data)
 
         errors = {}
         try:

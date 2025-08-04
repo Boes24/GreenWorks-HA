@@ -127,6 +127,7 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
         
         self._attr_unique_id = f"greenworks_{serial_num}"
         self._attr_name = mower.name
+        self._attr_icon = "mdi:robot-mower"  # Add an icon
         self._attr_supported_features = (
             LawnMowerEntityFeature.START_MOWING
             | LawnMowerEntityFeature.PAUSE
@@ -143,7 +144,7 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
         
         if not self.coordinator.data:
             _LOGGER.debug("No coordinator data available")
-            return None
+            return LawnMowerActivity.IDLE  # Return IDLE instead of None
         
         # Find the current mower data - match by sn (serial number) or id or name
         current_mower = None
@@ -159,57 +160,75 @@ class GreenWorksLawnMower(CoordinatorEntity, LawnMowerEntity):
                 break
                 
         if not current_mower:
-            _LOGGER.debug("Current mower not found in coordinator data")
-            return None
+            _LOGGER.warning("Current mower not found in coordinator data for %s", self.mower.name)
+            return LawnMowerActivity.IDLE  # Return IDLE instead of None
+        
+        # Log all available attributes on the current mower
+        _LOGGER.debug("Current mower attributes: %s", dir(current_mower))
+        _LOGGER.debug("Current mower vars: %s", vars(current_mower) if hasattr(current_mower, '__dict__') else 'No __dict__')
         
         # Check if mower has operating_status with mower_main_state
         operating_status = getattr(current_mower, 'operating_status', None)
-        if operating_status and hasattr(operating_status, 'mower_main_state'):
-            state = operating_status.mower_main_state
-            _LOGGER.debug("Mower %s main state: %s", current_mower.name, state)
+        if operating_status:
+            _LOGGER.debug("Operating status found: %s", operating_status)
+            _LOGGER.debug("Operating status attributes: %s", dir(operating_status))
+            _LOGGER.debug("Operating status vars: %s", vars(operating_status) if hasattr(operating_status, '__dict__') else 'No __dict__')
             
-            # Map GreenWorks MowerState enum to Home Assistant activity
-            # Based on MowerState enum: STOP_BUTTON_PRESSED=1, PARKED_BY_USER=2, PAUSED=3, 
-            # MOWING=4, LEAVING_CHARGING_STATION=5, SEARCHING_FOR_CHARGING_STATION=6, CHARGING=7
-            if hasattr(state, 'value'):
-                state_value = state.value
-            else:
-                state_value = state
+            if hasattr(operating_status, 'mower_main_state'):
+                state = operating_status.mower_main_state
+                _LOGGER.debug("Mower %s main state: %s (type: %s)", current_mower.name, state, type(state))
                 
-            if state_value == 4:  # MOWING
-                return LawnMowerActivity.MOWING
-            elif state_value == 7:  # CHARGING
-                return LawnMowerActivity.DOCKED
-            elif state_value in [1, 2, 3]:  # STOP_BUTTON_PRESSED, PARKED_BY_USER, PAUSED
-                return LawnMowerActivity.PAUSED
-            elif state_value in [5, 6]:  # LEAVING_CHARGING_STATION, SEARCHING_FOR_CHARGING_STATION
-                return LawnMowerActivity.DOCKED  # Treating as docked/returning
+                # Map GreenWorks MowerState enum to Home Assistant activity
+                # Based on MowerState enum: STOP_BUTTON_PRESSED=1, PARKED_BY_USER=2, PAUSED=3, 
+                # MOWING=4, LEAVING_CHARGING_STATION=5, SEARCHING_FOR_CHARGING_STATION=6, CHARGING=7
+                if hasattr(state, 'value'):
+                    state_value = state.value
+                else:
+                    state_value = state
+                    
+                _LOGGER.debug("State value: %s", state_value)
+                    
+                if state_value == 4:  # MOWING
+                    return LawnMowerActivity.MOWING
+                elif state_value == 7:  # CHARGING
+                    return LawnMowerActivity.DOCKED
+                elif state_value in [1, 2, 3]:  # STOP_BUTTON_PRESSED, PARKED_BY_USER, PAUSED
+                    return LawnMowerActivity.PAUSED
+                elif state_value in [5, 6]:  # LEAVING_CHARGING_STATION, SEARCHING_FOR_CHARGING_STATION
+                    return LawnMowerActivity.DOCKED  # Treating as docked/returning
+                else:
+                    _LOGGER.debug("Unknown state value %s, defaulting to IDLE", state_value)
+                    return LawnMowerActivity.IDLE
             else:
-                return LawnMowerActivity.IDLE
+                _LOGGER.debug("Operating status has no mower_main_state attribute")
         else:
-            # Fallback to checking status string if available
-            status = getattr(current_mower, 'status', '') or ''
-            if isinstance(status, str):
-                status = status.lower()
-            else:
-                status = str(status).lower()
-                
-            _LOGGER.debug("Mower %s fallback status: %s", current_mower.name, status)
+            _LOGGER.debug("No operating_status found on mower")
             
-            if "mowing" in status or "cutting" in status:
-                return LawnMowerActivity.MOWING
-            elif "charging" in status or "docked" in status:
-                return LawnMowerActivity.DOCKED
-            elif "paused" in status or "stopped" in status:
-                return LawnMowerActivity.PAUSED
-            else:
-                return LawnMowerActivity.IDLE
+        # Fallback to checking status string if available
+        status = getattr(current_mower, 'status', '') or ''
+        if isinstance(status, str):
+            status = status.lower()
+        else:
+            status = str(status).lower()
+            
+        _LOGGER.debug("Mower %s fallback status: %s", current_mower.name, status)
+        
+        if "mowing" in status or "cutting" in status:
+            return LawnMowerActivity.MOWING
+        elif "charging" in status or "docked" in status:
+            return LawnMowerActivity.DOCKED
+        elif "paused" in status or "stopped" in status:
+            return LawnMowerActivity.PAUSED
+        else:
+            return LawnMowerActivity.IDLE
 
     @property
     def state(self) -> str | None:
         """Return the current state."""
         activity = self.activity
-        return activity.value if activity else None
+        state_value = activity.value if activity else "unknown"
+        _LOGGER.debug("Mower %s state: %s (from activity: %s)", self.mower.name, state_value, activity)
+        return state_value
 
     @property
     def battery_level(self) -> int | None:

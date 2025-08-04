@@ -4,12 +4,10 @@ from datetime import timedelta
 import logging
 
 from homeassistant import config_entries, core
-from homeassistant.const import CONF_EMAIL, CONF_PASSWORD, CONF_TIME_ZONE
+from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from GreenWorksAPI.GreenWorksAPI import GreenWorksAPI, Mower, UnauthorizedException
-
-
 from .const import CONF_MOWER_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -20,7 +18,6 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
     """Set up Green Works from a config entry."""
     hass.data.setdefault(DOMAIN, {})
     
-
     try:
         api = await hass.async_add_executor_job(
             GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], hass.config.time_zone

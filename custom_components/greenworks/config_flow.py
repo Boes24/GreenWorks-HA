@@ -59,7 +59,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return self.async_show_form(step_id="user", data_schema=AUTH_SCHEMA, errors=errors)
         
         try:
-            mowers = await self.hass.async_add_executor_job(api.get_devices, api.login_info.user_id)
+            mowers = await self.hass.async_add_executor_job(api.get_devices)
         except UnauthorizedException as ex:
             errors["base"] = "auth_error"
             _LOGGER.error("Unauthorized error fetching devices", ex, exc_info=True, stack_info=True)

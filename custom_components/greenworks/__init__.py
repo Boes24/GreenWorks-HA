@@ -66,7 +66,13 @@ class GreenWorksDataCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
         try:
+            _LOGGER.debug("Fetching data from GreenWorks API")
             self._mower = await self.hass.async_add_executor_job(self.api.get_devices)
+            _LOGGER.debug("Fetched %d mowers: %s", len(self._mower), [m.name for m in self._mower])
             return self._mower
         except KeyError as ex:
+            _LOGGER.error("KeyError calling GreenWorks API: %s", ex)
+            raise UpdateFailed("Problems calling GreenWorks") from ex
+        except Exception as ex:
+            _LOGGER.error("Unexpected error calling GreenWorks API: %s", ex)
             raise UpdateFailed("Problems calling GreenWorks") from ex

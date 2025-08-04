@@ -72,12 +72,12 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         all_mowers = {d.name for d in mowers}
 
-        MOWER_SCHEMA = vol.Schema(
+        DEVICE_SCHEMA = vol.Schema(
             {vol.Optional(CONF_MOWER_NAME): vol.In(all_mowers)}
         )
 
         return self.async_show_form(
-            step_id="mower", data_schema=MOWER_SCHEMA, errors=errors
+            step_id="device", data_schema=DEVICE_SCHEMA, errors=errors
         )
 
     async def async_step_reauth(self, user_input=None):

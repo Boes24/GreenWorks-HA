@@ -23,7 +23,7 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
 
     try:
         api = await hass.async_add_executor_job(
-            GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], entry.data[CONF_TIME_ZONE]
+            GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], hass.config.time_zone
         )
     except UnauthorizedException as err:
         raise ConfigEntryAuthFailed(err) from err

@@ -34,6 +34,15 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
 
     return True
 
+
+async def async_unload_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
+    """Unload a config entry."""
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        hass.data[DOMAIN].pop("coordinator" + entry.data[CONF_MOWER_NAME])
+
+    return unload_ok
+
 class GreenWorksDataCoordinator(DataUpdateCoordinator):
     """Get and update the latest data."""
 
@@ -49,12 +58,15 @@ class GreenWorksDataCoordinator(DataUpdateCoordinator):
         self.mower_name = mower_name
         self._mower:list[Mower]
 
+    @property
+    def mower(self) -> list[Mower]:
+        """Return the mower data."""
+        return self.data if self.data else []
+
     async def _async_update_data(self):
+        """Fetch data from API endpoint."""
         try:
             self._mower = await self.hass.async_add_executor_job(self.api.get_devices)
+            return self._mower
         except KeyError as ex:
             raise UpdateFailed("Problems calling GreenWorks") from ex
-
-    def get_first_mower(self) -> Mower:
-        """Return the first mower of all users mowers."""
-        return self._mower[0]

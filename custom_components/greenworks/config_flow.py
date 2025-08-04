@@ -42,7 +42,7 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if data is not None:
             data[CONF_EMAIL] = self._email
             data[CONF_PASSWORD] = self._password
-            return await self.async_create_entry(title="mower_name", data=data)
+            return await self.async_create_entry(title=data[CONF_MOWER_NAME], data=data)
 
         errors = {}
         try:
@@ -69,15 +69,13 @@ class GreenworksConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors["base"] = "unknown_error"
             return self.async_show_form(step_id="user", data_schema=AUTH_SCHEMA, errors=errors)
 
-        all_mowers = {d.name for d in mowers}
+        all_mowers = {m.name for m in mowers}
 
         DEVICE_SCHEMA = vol.Schema(
             {vol.Optional(CONF_MOWER_NAME): vol.In(all_mowers)}
         )
 
-        return self.async_show_form(
-            step_id="device", data_schema=DEVICE_SCHEMA, errors=errors
-        )
+        return self.async_show_form(step_id="device", data_schema=DEVICE_SCHEMA, errors=errors)
 
     async def async_step_reauth(self, user_input=None):
         """Handle re-authentication step in the config flow."""

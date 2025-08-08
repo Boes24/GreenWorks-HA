@@ -12,7 +12,7 @@ from .const import CONF_MOWER_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["lawn_mower"]
+PLATFORMS: list[str] = ["lawn_mower", "sensor"]
 
 async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
     """Set up Green Works from a config entry."""

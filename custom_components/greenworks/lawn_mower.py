@@ -141,11 +141,12 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             "CHARGING": LawnMowerActivity.DOCKED,
             "PARKED_BY_USER": LawnMowerActivity.DOCKED,
             "PAUSED": LawnMowerActivity.PAUSED,
-            "STOP_BUTTON_PRESSED": LawnMowerActivity.IDLE,
-            "LEAVING_CHARGING_STATION": LawnMowerActivity.IDLE,
-            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.IDLE,
+            # HA core may not have an IDLE state; map these transitional/stopped states conservatively.
+            "STOP_BUTTON_PRESSED": LawnMowerActivity.PAUSED,
+            "LEAVING_CHARGING_STATION": LawnMowerActivity.PAUSED,
+            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.PAUSED,
         }
-        return mapping.get(state_name, LawnMowerActivity.IDLE)
+        return mapping.get(state_name)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:

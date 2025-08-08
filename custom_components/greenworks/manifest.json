@@ -8,6 +8,5 @@
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/Boes24/GreenWorks-HA/issues",
   "requirements": ["GreenWorks==0.0.2.0"],
-  "version": "0.1.0",
-  "platforms": ["lawn_mower"]
+  "version": "0.1.0"
 }

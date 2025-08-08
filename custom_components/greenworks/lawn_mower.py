@@ -138,13 +138,13 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
         # Map vendor states to HA activities
         mapping: dict[str, Any] = {
             "MOWING": LawnMowerActivity.MOWING,
+            "LEAVING_CHARGING_STATION": LawnMowerActivity.MOWING,
             "CHARGING": LawnMowerActivity.DOCKED,
             "PARKED_BY_USER": LawnMowerActivity.DOCKED,
+            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.DOCKED,
             "PAUSED": LawnMowerActivity.PAUSED,
-            # HA core may not have an IDLE state; map these transitional/stopped states conservatively.
             "STOP_BUTTON_PRESSED": LawnMowerActivity.PAUSED,
-            "LEAVING_CHARGING_STATION": LawnMowerActivity.PAUSED,
-            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.PAUSED,
+            
         }
         return mapping.get(state_name)
 
@@ -191,9 +191,8 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             else:
                 raise NotImplementedError("Start mowing not supported by API")
         finally:
-            # Request a refresh after command
-            self.hass.async_create_task(self.coordinator.async_request_refresh())
-            self.async_write_ha_state()
+            # No HA calls from executor thread; async wrapper will refresh
+            pass
 
     def pause(self) -> None:
         mower = self._current_mower
@@ -210,8 +209,8 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             else:
                 raise NotImplementedError("Pause not supported by API")
         finally:
-            self.hass.async_create_task(self.coordinator.async_request_refresh())
-            self.async_write_ha_state()
+            # No HA calls from executor thread; async wrapper will refresh
+            pass
 
     def dock(self) -> None:
         mower = self._current_mower
@@ -229,15 +228,21 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             else:
                 raise NotImplementedError("Dock not supported by API")
         finally:
-            self.hass.async_create_task(self.coordinator.async_request_refresh())
-            self.async_write_ha_state()
+            # No HA calls from executor thread; async wrapper will refresh
+            pass
 
     # Async wrappers to avoid blocking the event loop
     async def async_start_mowing(self) -> None:
         await self.hass.async_add_executor_job(self.start_mowing)
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
 
     async def async_pause(self) -> None:
         await self.hass.async_add_executor_job(self.pause)
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()
 
     async def async_dock(self) -> None:
         await self.hass.async_add_executor_job(self.dock)
+        await self.coordinator.async_request_refresh()
+        self.async_write_ha_state()

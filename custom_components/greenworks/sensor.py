@@ -31,6 +31,7 @@ async def async_setup_entry(
     entities: list[SensorEntity] = []
     entities.append(GreenWorksBatterySensor(coordinator, mower_name))
     entities.append(GreenWorksNextStartSensor(coordinator, mower_name))
+    entities.append(GreenWorksBladeUsageSensor(coordinator, mower_name))
 
     async_add_entities(entities, update_before_add=True)
 
@@ -126,3 +127,32 @@ class GreenWorksNextStartSensor(_GreenWorksBaseSensor):
         if operating_status is None:
             return None
         return getattr(operating_status, "next_start", None)
+
+
+class GreenWorksBladeUsageSensor(_GreenWorksBaseSensor):
+    """Blade usage time sensor. Exposes raw string from properties."""
+
+    def __init__(self, coordinator: GreenWorksDataCoordinator, mower_name: str) -> None:
+        super().__init__(coordinator, mower_name)
+        self._attr_name = f"{mower_name} Blade Usage"
+        mower = self._current_mower
+        uid = getattr(mower, "sn", None) or getattr(mower, "id", mower_name)
+        self._attr_unique_id = f"{uid}_blade_usage"
+
+    @property
+    def icon(self) -> str | None:
+        return "mdi:knife"
+
+    @property
+    def native_value(self) -> str | None:
+        mower = self._current_mower
+        if mower is None:
+            return None
+        props = getattr(mower, "properties", None)
+        if props is None:
+            return None
+        val = getattr(props, "device_blade_usage_time", None)
+        if val is None:
+            return None
+        # Return raw string; format is vendor-defined
+        return str(val)

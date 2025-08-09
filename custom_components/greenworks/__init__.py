@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 import logging
+from typing import Final
 
 from homeassistant import config_entries, core
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -12,7 +13,7 @@ from .const import CONF_MOWER_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[str] = ["lawn_mower", "sensor"]
+PLATFORMS: Final = ["lawn_mower", "sensor", "binary_sensor"]
 
 async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.ConfigEntry) -> bool:
     """Set up Green Works from a config entry."""

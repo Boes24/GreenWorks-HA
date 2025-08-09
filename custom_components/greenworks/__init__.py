@@ -53,7 +53,7 @@ class GreenWorksDataCoordinator(DataUpdateCoordinator):
             hass,
             _LOGGER,
             name="GreenWorksData",
-            update_interval=timedelta(seconds=120),
+            update_interval=timedelta(seconds=60),
         )
         self.api = api
         self.mower_name = mower_name

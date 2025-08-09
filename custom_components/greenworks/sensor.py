@@ -154,9 +154,55 @@ class GreenWorksBladeUsageSensor(_GreenWorksBaseSensor):
             return None
         val = getattr(props, "device_blade_usage_time", None)
         if val is None:
+            _LOGGER.debug("Blade usage missing for mower '%s' (properties=%s)", self._mower_name, props)
             return None
+        _LOGGER.debug("Blade usage raw value for mower '%s': %s", self._mower_name, val)
+        # Normalize across possible backend formats
         try:
-            return int(val)
+            # Already numeric
+            if isinstance(val, (int, float)):
+                return int(val)
+            # Dict with a BladeUsageTime field
+            if isinstance(val, dict):
+                inner = val.get("BladeUsageTime")
+                if isinstance(inner, list) and inner:
+                    return int(inner[0])
+                if isinstance(inner, (int, float)):
+                    return int(inner)
+            # List of numbers
+            if isinstance(val, list) and val:
+                return int(val[0])
+            # JSON string
+            if isinstance(val, str):
+                import json
+                try:
+                    parsed = json.loads(val)
+                    if isinstance(parsed, dict) and "BladeUsageTime" in parsed:
+                        inner = parsed["BladeUsageTime"]
+                        if isinstance(inner, list) and inner:
+                            return int(inner[0])
+                        if isinstance(inner, (int, float)):
+                            return int(inner)
+                    if isinstance(parsed, list) and parsed:
+                        return int(parsed[0])
+                except Exception:
+                    # Fallback: strip non-digits and try int
+                    import re
+                    digits = re.findall(r"\d+", val)
+                    if digits:
+                        return int(digits[0])
         except Exception:
+            _LOGGER.debug("Blade usage parse failed for mower '%s' (value=%s)", self._mower_name, val)
             return None
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        mower = self._current_mower
+        if mower is None:
+            return None
+        props = getattr(mower, "properties", None)
+        if props is None:
+            return None
+        return {"raw_blade_usage": getattr(props, "device_blade_usage_time", None)}
 

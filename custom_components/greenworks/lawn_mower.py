@@ -59,7 +59,7 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             features |= LawnMowerEntityFeature.START_MOWING
         if hasattr(api, "pause_mower"):
             features |= LawnMowerEntityFeature.PAUSE
-        if hasattr(api, "dock") or hasattr(api, "return_to_base"):
+        if hasattr(api, "dock") or hasattr(api, "return_to_base") or hasattr(api, "dock_mower"):
             features |= LawnMowerEntityFeature.DOCK
         self._attr_supported_features = features
 
@@ -218,8 +218,11 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             raise RuntimeError("Mower not available")
         api: Any = self.coordinator.api
         try:
-            # Assumption: 'dock' or 'return_to_base' action exists
-            if hasattr(api, "dock"):
+            # Prefer updated API method name dock_mower(mower_id)
+            if hasattr(api, "dock_mower"):
+                api.dock_mower(getattr(mower, "id"))
+            # Backward-compatibility fallbacks
+            elif hasattr(api, "dock"):
                 api.dock(mower)
             elif hasattr(api, "return_to_base"):
                 api.return_to_base(mower)

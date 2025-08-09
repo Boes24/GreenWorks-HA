@@ -130,7 +130,8 @@ class GreenWorksNextStartSensor(_GreenWorksBaseSensor):
 
 
 class GreenWorksBladeUsageSensor(_GreenWorksBaseSensor):
-    """Blade usage time sensor. Exposes raw string from properties."""
+    """Blade usage time sensor as integer from mower properties."""
+    _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, coordinator: GreenWorksDataCoordinator, mower_name: str) -> None:
         super().__init__(coordinator, mower_name)
@@ -144,7 +145,7 @@ class GreenWorksBladeUsageSensor(_GreenWorksBaseSensor):
         return "mdi:knife"
 
     @property
-    def native_value(self) -> str | None:
+    def native_value(self) -> int | None:
         mower = self._current_mower
         if mower is None:
             return None
@@ -154,5 +155,8 @@ class GreenWorksBladeUsageSensor(_GreenWorksBaseSensor):
         val = getattr(props, "device_blade_usage_time", None)
         if val is None:
             return None
-        # Return raw string; format is vendor-defined
-        return str(val)
+        try:
+            return int(val)
+        except Exception:
+            return None
+

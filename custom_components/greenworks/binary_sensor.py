@@ -5,10 +5,7 @@ from __future__ import annotations
 from typing import Any, cast
 import logging
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -73,8 +70,6 @@ class _GreenWorksBaseBinary(CoordinatorEntity[GreenWorksDataCoordinator], Binary
 
 
 class GreenWorksFrostSensor(_GreenWorksBaseBinary):
-    _attr_device_class = BinarySensorDeviceClass.COLD
-
     def __init__(self, coordinator: GreenWorksDataCoordinator, mower_name: str) -> None:
         super().__init__(coordinator, mower_name)
         self._attr_name = f"{mower_name} Frost"
@@ -95,8 +90,6 @@ class GreenWorksFrostSensor(_GreenWorksBaseBinary):
 
 
 class GreenWorksRainSensor(_GreenWorksBaseBinary):
-    _attr_device_class = BinarySensorDeviceClass.MOISTURE
-
     def __init__(self, coordinator: GreenWorksDataCoordinator, mower_name: str) -> None:
         super().__init__(coordinator, mower_name)
         self._attr_name = f"{mower_name} Rain"

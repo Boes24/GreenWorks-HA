@@ -12,6 +12,8 @@ from GreenWorksAPI.GreenWorksAPI import GreenWorksAPI, Mower, UnauthorizedExcept
 from .const import CONF_MOWER_NAME, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+_LOGGER.warning("🚀 Greenworks integration is loading! (warning)")
+_LOGGER.debug("🐞 Debug logging is working in Greenworks.")
 
 PLATFORMS: Final = ["lawn_mower", "sensor", "binary_sensor"]
 

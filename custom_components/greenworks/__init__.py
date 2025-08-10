@@ -3,6 +3,8 @@
 from datetime import timedelta
 import logging
 from typing import Final
+import io
+import contextlib
 
 from homeassistant import config_entries, core
 from homeassistant.const import CONF_EMAIL, CONF_PASSWORD
@@ -22,9 +24,7 @@ async def async_setup_entry(hass: core.HomeAssistant, entry: config_entries.Conf
     hass.data.setdefault(DOMAIN, {})
     
     try:
-        api = await hass.async_add_executor_job(
-            GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], hass.config.time_zone
-        )
+        api = await hass.async_add_executor_job(GreenWorksAPI, entry.data[CONF_EMAIL], entry.data[CONF_PASSWORD], hass.config.time_zone)
     except UnauthorizedException as err:
         raise ConfigEntryAuthFailed(err) from err
 
@@ -70,7 +70,17 @@ class GreenWorksDataCoordinator(DataUpdateCoordinator):
         """Fetch data from API endpoint."""
         try:
             _LOGGER.debug("Fetching data from GreenWorks API")
-            self._mower = await self.hass.async_add_executor_job(self.api.get_devices)
+            # Capture stdout from the third-party library (which uses print) so it appears in HA logs
+            def _call_with_captured_stdout():
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    result = self.api.get_devices()
+                out = buf.getvalue()
+                if out:
+                    _LOGGER.debug("GreenWorksAPI stdout (get_devices):\n%s", out.strip())
+                return result
+
+            self._mower = await self.hass.async_add_executor_job(_call_with_captured_stdout)
             _LOGGER.debug("Fetched %d mowers: %s", len(self._mower), [m.name for m in self._mower])
             return self._mower
         except KeyError as ex:

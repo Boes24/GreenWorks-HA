@@ -5,10 +5,6 @@ from enum import Enum, IntFlag
 DOMAIN = "greenworks"
 CONF_MOWER_NAME = "mower_name"
 
-SERVICE_DOCK = "dock"
-SERVICE_PAUSE = "pause"
-SERVICE_START_MOWING = "start_mowing"
-
 
 class LawnMowerActivity(str, Enum):
     """Possible states of the lawn mower."""

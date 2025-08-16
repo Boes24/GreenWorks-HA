@@ -21,6 +21,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_MOWER_NAME, DOMAIN
 from . import GreenWorksDataCoordinator
+from GreenWorksAPI.GreenWorksAPI import Mower
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -52,16 +53,8 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
         self._attr_name = mower_name
         # unique_id should be stable; fallback to name if we can't resolve id yet
         self._attr_unique_id = f"greenworks_{mower_name}"
-        # Determine supported features dynamically from the API
-        features = LawnMowerEntityFeature(0)
-        api: Any = coordinator.api
-        if hasattr(api, "unpause_mower"):
-            features |= LawnMowerEntityFeature.START_MOWING
-        if hasattr(api, "pause_mower"):
-            features |= LawnMowerEntityFeature.PAUSE
-        if hasattr(api, "dock") or hasattr(api, "return_to_base") or hasattr(api, "dock_mower"):
-            features |= LawnMowerEntityFeature.DOCK
-        self._attr_supported_features = features
+        # Remove control abilities: do not advertise any supported features
+        self._attr_supported_features = LawnMowerEntityFeature(0)
 
         # Try to set a better unique_id if available from current data
         mower = self._current_mower
@@ -72,7 +65,7 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
 
     # Helpers
     @property
-    def _current_mower(self):
+    def _current_mower(self) -> Mower | None:
         """Return the latest mower object matching this entity."""
         data = self.coordinator.data or []
         for m in data:
@@ -110,6 +103,7 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
     @property
     def activity(self) -> Any | None:
         mower = self._current_mower
+
         if mower is None:
             return None
 
@@ -172,80 +166,3 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             pass
         return attrs
 
-    # Commands (sync methods as expected by HA base)
-    def start_mowing(self) -> None:
-        mower = self._current_mower
-        if mower is None:
-            raise RuntimeError("Mower not available")
-        api: Any = self.coordinator.api
-        try:
-            # Resume/start by unpausing via API if available
-            if hasattr(api, "unpause_mower"):
-                api.unpause_mower(getattr(mower, "id"))
-            elif hasattr(api, "start_mowing"):
-                api.start_mowing(mower)  # fallback for other libs
-            elif hasattr(mower, "start_mowing"):
-                mower.start_mowing()  # fallback on device
-            elif hasattr(api, "start"):
-                api.start(mower)  # generic fallback
-            else:
-                raise NotImplementedError("Start mowing not supported by API")
-        finally:
-            # No HA calls from executor thread; async wrapper will refresh
-            pass
-
-    def pause(self) -> None:
-        mower = self._current_mower
-        if mower is None:
-            raise RuntimeError("Mower not available")
-        api: Any = self.coordinator.api
-        try:
-            if hasattr(api, "pause_mower"):
-                api.pause_mower(getattr(mower, "id"))
-            elif hasattr(api, "pause"):
-                api.pause(mower)  # fallback for other libs
-            elif hasattr(mower, "pause"):
-                mower.pause()
-            else:
-                raise NotImplementedError("Pause not supported by API")
-        finally:
-            # No HA calls from executor thread; async wrapper will refresh
-            pass
-
-    def dock(self) -> None:
-        mower = self._current_mower
-        if mower is None:
-            raise RuntimeError("Mower not available")
-        api: Any = self.coordinator.api
-        try:
-            # Prefer updated API method name dock_mower(mower_id)
-            if hasattr(api, "dock_mower"):
-                api.dock_mower(getattr(mower, "id"))
-            # Backward-compatibility fallbacks
-            elif hasattr(api, "dock"):
-                api.dock(mower)
-            elif hasattr(api, "return_to_base"):
-                api.return_to_base(mower)
-            elif hasattr(mower, "dock"):
-                mower.dock()
-            else:
-                raise NotImplementedError("Dock not supported by API")
-        finally:
-            # No HA calls from executor thread; async wrapper will refresh
-            pass
-
-    # Async wrappers to avoid blocking the event loop
-    async def async_start_mowing(self) -> None:
-        await self.hass.async_add_executor_job(self.start_mowing)
-        await self.coordinator.async_request_refresh()
-        self.async_write_ha_state()
-
-    async def async_pause(self) -> None:
-        await self.hass.async_add_executor_job(self.pause)
-        await self.coordinator.async_request_refresh()
-        self.async_write_ha_state()
-
-    async def async_dock(self) -> None:
-        await self.hass.async_add_executor_job(self.dock)
-        await self.coordinator.async_request_refresh()
-        self.async_write_ha_state()

@@ -135,7 +135,7 @@ class GreenWorksMowerEntity(CoordinatorEntity, LawnMowerEntity):  # type: ignore
             "LEAVING_CHARGING_STATION": LawnMowerActivity.MOWING,
             "CHARGING": LawnMowerActivity.DOCKED,
             "PARKED_BY_USER": LawnMowerActivity.DOCKED,
-            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.IDLE,
+            "SEARCHING_FOR_CHARGING_STATION": LawnMowerActivity.RETURNING, # type: ignore
             "PAUSED": LawnMowerActivity.PAUSED,
             "STOP_BUTTON_PRESSED": LawnMowerActivity.ERROR,
             
